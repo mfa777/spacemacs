@@ -1,6 +1,6 @@
 ;;; funcs.el --- Shell Layer functions File
 ;;
-;; Copyright (c) 2012-2022 Sylvain Benner & Contributors
+;; Copyright (c) 2012-2024 Sylvain Benner & Contributors
 ;;
 ;; Author: Sylvain Benner <sylvain.benner@gmail.com>
 ;; URL: https://github.com/syl20bnr/spacemacs
@@ -39,7 +39,9 @@ view; to pop-up a full width buffer, use
 `spacemacs/projectile-shell-pop'."
   (interactive)
   (call-interactively
-   (or (and (eq shell-default-shell 'multi-term) #'projectile-multi-term-in-root)
+   (or (pcase shell-default-shell
+         ('multi-term #'projectile-multi-term-in-root)
+         ('eat #'eat-project))
        (intern-soft (format "projectile-run-%s" shell-default-shell))
        #'projectile-run-shell)))
 
@@ -75,8 +77,9 @@ Additionally changes to working directory when the value of
 `shell-pop-autocd-to-working-dir' is non-nil (default)."
   (interactive)
   (let ((shell (cl-case shell-default-shell
-                 ('multi-term 'multiterm)
-                 ('shell 'inferior-shell)
+                 (multi-vterm 'multivterm)
+                 (multi-term 'multiterm)
+                 (shell 'inferior-shell)
                  (t shell-default-shell))))
     (call-interactively (intern (format "spacemacs/shell-pop-%S" shell)))))
 
@@ -165,7 +168,6 @@ is achieved by adding the relevant text properties."
 (defun spacemacs//init-eshell ()
   "Stuff to do when enabling eshell."
   (setq pcomplete-cycle-completions nil)
-  (if (bound-and-true-p linum-mode) (linum-mode -1))
   ;; autojump to prompt line if not on one already
   (add-hook 'evil-insert-state-entry-hook
             'spacemacs//eshell-auto-end nil t)
@@ -240,6 +242,11 @@ is achieved by adding the relevant text properties."
   "Wrapper to be able to call multi-term from shell-pop"
   (interactive)
   (multi-term))
+
+(defun multivterm (&optional ARG)
+  "Wrapper to be able to call multi-vterm from shell-pop"
+  (interactive)
+  (multi-vterm))
 
 (defun inferior-shell (&optional ARG)
   "Wrapper to open shell in current window"

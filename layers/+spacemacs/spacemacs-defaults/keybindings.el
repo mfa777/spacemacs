@@ -1,6 +1,6 @@
 ;;; keybindings.el --- Spacemacs Defaults Layer key-bindings File
 ;;
-;; Copyright (c) 2012-2022 Sylvain Benner & Contributors
+;; Copyright (c) 2012-2024 Sylvain Benner & Contributors
 ;;
 ;; Author: Sylvain Benner <sylvain.benner@gmail.com>
 ;; URL: https://github.com/syl20bnr/spacemacs
@@ -66,6 +66,7 @@
                                        "p"   "projects"
                                        "q"   "quit"
                                        "r"   "registers/rings/resume"
+                                       "rd"  "purpose-toggle-window"
                                        "s"   "search/symbol"
                                        "sa"  "ag"
                                        "sg"  "grep"
@@ -257,7 +258,7 @@
    ("m" spacemacs/switch-to-messages-buffer "Messages buffer")
    ("P" spacemacs/copy-clipboard-to-whole-buffer "Paste and replace buffer")
    ("p" previous-buffer "Previous buffer")
-   ("R" spacemacs/safe-revert-buffer "Revert buffer...")
+   ("R" revert-buffer "Revert buffer...")
    ("s" spacemacs/switch-to-scratch-buffer "Scratch buffer")
    ("u" spacemacs/reopen-killed-buffer "Reopen last killed buffer")
    ("x" kill-buffer-and-window "Kill buffer and close window")
@@ -362,7 +363,8 @@
  (("f" "Files"
    ("A" spacemacs/find-file-and-replace-buffer "Set another file for buffer...")
    ("c" spacemacs/save-as "Save file or active region as a new file...")
-   ("D" spacemacs/delete-current-buffer-file "Delete...")
+   ("D" spacemacs/delete-current-buffer-file-yes "Delete without confirm...")
+   ("d" spacemacs/delete-current-buffer-file "Delete...")
    ("i" spacemacs/insert-file "Insert file content...")
    ("l" find-file-literally "Open file literally...")
    ("E" spacemacs/sudo-edit "Open using sudo...")
@@ -382,6 +384,7 @@
     ("D" spacemacs/ediff-dotfile-and-template "Diff. with dotfile template")
     ("e" spacemacs/edit-env "Open \".spacemacs.env\"")
     ("E" dotspacemacs/call-user-env "Refresh env. variables")
+    ("l" find-library "Find Emacs library...")
     ("R" dotspacemacs/sync-configuration-layers "Reload configuration")
     ("v" spacemacs/display-and-copy-version "Copy Spacemacs version")
     ("U" configuration-layer/update-packages "Update packages..."))
@@ -414,11 +417,15 @@
 ;; help -----------------------------------------------------------------------
 (defalias 'emacs-tutorial 'help-with-tutorial)
 (spacemacs/set-leader-keys
+  "hda" 'apropos-command
   "hdb" 'describe-bindings
   "hdc" 'describe-char
   "hdf" 'describe-function
+  "hdF" 'describe-face
   "hdk" 'describe-key
+  "hdK" 'describe-keymap
   "hdl" 'spacemacs/describe-last-keys
+  "hdm" 'spacemacs/describe-mode
   "hdp" 'describe-package
   "hdP" 'configuration-layer/describe-package
   "hds" 'spacemacs/describe-system-info
@@ -774,7 +781,9 @@ respond to this toggle."
   ("b" (cond ((configuration-layer/layer-used-p 'helm)
               (helm-buffers-list))
              ((configuration-layer/layer-used-p 'ivy)
-              (ivy-switch-buffer))))
+              (ivy-switch-buffer))
+             ((configuration-layer/layer-used-p 'compleseus)
+              (spacemacs/compleseus-switch-to-buffer))))
   ("d" spacemacs/kill-this-buffer)
   ("C-d" bury-buffer)
   ("z" recenter-top-bottom)
@@ -1053,3 +1062,68 @@ If FRAME is nil, it defaults to the selected frame."
   'spacemacs/scale-transparency-transient-state/spacemacs/toggle-transparency)
 
 ;; end of Transparency Transient State
+
+;; Background Transparency transient-state
+
+(defun spacemacs/enable-background-transparency (&optional frame alpha-background)
+  "Enable background transparency for FRAME.
+If FRAME is nil, it defaults to the selected frame.
+ALPHA is a pair of active and inactive transparency values. The
+default value for ALPHA is based on `dotspacemacs-background-transparency'"
+  (interactive)
+  (message (number-to-string dotspacemacs-background-transparency))
+  (let ((alpha-setting (or alpha-background dotspacemacs-background-transparency)))
+    (message (number-to-string alpha-setting))
+    (set-frame-parameter frame 'alpha-background alpha-setting)))
+
+(defun spacemacs/disable-background-transparency (&optional frame)
+  "Disable background transparency for FRAME.
+If FRAME is nil, it defaults to the selected frame."
+  (interactive)
+  (set-frame-parameter frame 'alpha-background 100))
+
+
+(defun spacemacs/toggle-background-transparency (&optional frame)
+  "Toggle between transparent and opaque background state for FRAME.
+If FRAME is nil, it defaults to the selected frame."
+  (interactive)
+  (let ((alpha-background (frame-parameter frame 'alpha-background))
+        (dotfile-setting dotspacemacs-background-transparency))
+    (if (equal alpha-background dotfile-setting)
+        (spacemacs/disable-background-transparency frame)
+      (spacemacs/enable-background-transparency frame dotfile-setting))))
+
+(defun spacemacs/increase-background-transparency (&optional frame)
+  "Increase background transparency for FRAME.
+If FRAME is nil, it defaults to the selected frame."
+  (interactive)
+  (let* ((current-alpha (or (frame-parameter frame 'alpha-background) 100))
+         (message current-alpha)
+         (increased-alpha (- current-alpha 5)))
+    (when (>= increased-alpha frame-alpha-lower-limit)
+      (set-frame-parameter frame 'alpha-background increased-alpha))))
+
+(defun spacemacs/decrease-background-transparency (&optional frame)
+  "Decrease backrgound transparency for FRAME.
+If FRAME is nil, it defaults to the selected frame."
+  (interactive)
+  (let* ((current-alpha (or (frame-parameter frame 'alpha-background) 100))
+         (decreased-alpha (+ current-alpha 5)))
+    (when (<= decreased-alpha 100)
+      (set-frame-parameter frame 'alpha-background decreased-alpha))))
+
+(spacemacs|define-transient-state scale-background-transparency
+  :title "Frame Background Transparency Transient State"
+  :doc "\n[_+_/_=_/_k_] increase transparency [_-_/___/_j_] decrease [_T_] toggle [_q_] quit"
+  :bindings
+  ("+" spacemacs/increase-background-transparency)
+  ("=" spacemacs/increase-background-transparency)
+  ("k" spacemacs/increase-background-transparency)
+  ("-" spacemacs/decrease-background-transparency)
+  ("_" spacemacs/decrease-background-transparency)
+  ("j" spacemacs/decrease-background-transparency)
+  ("T" spacemacs/toggle-background-transparency)
+  ("q" nil :exit t))
+
+(spacemacs/set-leader-keys "TB"
+  'spacemacs/scale-background-transparency-transient-state/spacemacs/toggle-background-transparency)
