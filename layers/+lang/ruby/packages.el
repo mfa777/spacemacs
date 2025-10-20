@@ -48,6 +48,7 @@
     ruby-test-mode
     ruby-tools
     (rvm :toggle (eq ruby-version-manager 'rvm))
+    seeing-is-believing
     smartparens))
 
 (defun ruby/init-bundler ()
